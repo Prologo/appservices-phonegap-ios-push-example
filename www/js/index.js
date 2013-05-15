@@ -48,6 +48,7 @@ var app = {
                     "provider":"apigee",
                     "orgName":"YOUR APIGEE.COM USERNAME",
                     "appName":"sandbox",
+                    "notifier":"YOUR NOTIFIER",
                     "token":status.deviceToken
                 };
 
@@ -66,6 +67,7 @@ var app = {
                  "provider":"apigee",
                  "orgName":"YOUR APIGEE.COM USERNAME",
                  "appName":"sandbox",
+                 "notifier":"YOUR NOTIFIER",
                  "deviceId":results.deviceId,
                  "message":"Hello!"
                  };

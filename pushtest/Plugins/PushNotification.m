@@ -36,11 +36,11 @@ NSString * notifier = @"apple";
 
 - (void)registerDevice:(CDVInvokedUrlCommand *)command {
 	DLog(@"registerDevice:%@", command);
-
+    
 	// The first argument in the arguments parameter is the callbackID.
 	[self.callbackIds setValue:command.callbackId forKey:@"registerDevice"];
 	NSDictionary *options = [command.arguments objectAtIndex:0];
-
+    
 	UIRemoteNotificationType notificationTypes = UIRemoteNotificationTypeNone;
 	if ([options objectForKey:@"badge"]) {
 		notificationTypes |= UIRemoteNotificationTypeBadge;
@@ -51,13 +51,13 @@ NSString * notifier = @"apple";
 	if ([options objectForKey:@"alert"]) {
 		notificationTypes |= UIRemoteNotificationTypeAlert;
 	}
-
+    
 	if (notificationTypes == UIRemoteNotificationTypeNone)
 		NSLog(@"PushNotification.registerDevice: Push notification type is set to none");
-
+    
 	//[[UIApplication sharedApplication] unregisterForRemoteNotifications];
 	[[UIApplication sharedApplication] registerForRemoteNotificationTypes:notificationTypes];
-
+    
 }
 
 -(void)registerWithPushProvider:(CDVInvokedUrlCommand *)command {
@@ -66,7 +66,7 @@ NSString * notifier = @"apple";
     NSDictionary *options = [command.arguments objectAtIndex:0];
     
     if([[options objectForKey:@"provider"] isEqualToString:@"apigee"]) {
-
+        
         NSString * orgName = [options objectForKey:@"orgName"];
         NSString * appName = [options objectForKey:@"appName"];
         NSString * baseUrl = @"https://api.usergrid.com/";
@@ -77,7 +77,7 @@ NSString * notifier = @"apple";
         
         UGClient * usergridClient = [[UGClient alloc] initWithOrganizationId:orgName withApplicationID:appName baseURL:baseUrl];
         NSLog(@"Registering for push w/apigee");
-        UGClientResponse *response = [usergridClient setDevicePushToken:[options objectForKey:@"token"] forNotifier:notifier];
+        UGClientResponse *response = [usergridClient setDevicePushToken:[options objectForKey:@"token"] forNotifier:[options objectForKey:@"notifier"]];
         if (response.transactionState != kUGClientResponseSuccess) {
             CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"device not linked"];
             [self writeJavascript:[pluginResult toSuccessCallbackString:[self.callbackIds valueForKey:@"registerWithPushProvider"]]];
@@ -87,7 +87,7 @@ NSString * notifier = @"apple";
         }
         
     }
-
+    
 }
 
 -(void)pushNotificationToDevice:(CDVInvokedUrlCommand *)command {
@@ -109,7 +109,7 @@ NSString * notifier = @"apple";
     UGClientResponse *response = [usergridClient pushAlert: message
                                                  withSound: @"chime"
                                                         to: thisDevice
-                                             usingNotifier: notifier];
+                                             usingNotifier: [options objectForKey:@"notifier"]];
     
     if (response.transactionState != kUGClientResponseSuccess) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"message not pushed"];
@@ -130,24 +130,24 @@ NSString * notifier = @"apple";
 
 - (void)didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken {
 	DLog(@"didRegisterForRemoteNotificationsWithDeviceToken:%@", deviceToken);
-
+    
 	NSString *token = [[[[deviceToken description] stringByReplacingOccurrencesOfString:@"<"withString:@""]
 						stringByReplacingOccurrencesOfString:@">" withString:@""]
 					   stringByReplacingOccurrencesOfString: @" " withString: @""];
-
+    
     NSMutableDictionary *results = [PushNotification getRemoteNotificationStatus];
     [results setValue:token forKey:@"deviceToken"];
-
+    
 	CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:results];
 	[self writeJavascript:[pluginResult toSuccessCallbackString:[self.callbackIds valueForKey:@"registerDevice"]]];
 }
 
 - (void)didFailToRegisterForRemoteNotificationsWithError:(NSError*)error {
 	DLog(@"didFailToRegisterForRemoteNotificationsWithError:%@", error);
-
+    
 	NSMutableDictionary *results = [NSMutableDictionary dictionary];
 	[results setValue:[NSString stringWithFormat:@"%@", error] forKey:@"error"];
-
+    
 	CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsDictionary:results];
 	[self writeJavascript:[pluginResult toErrorCallbackString:[self.callbackIds valueForKey:@"registerDevice"]]];
 }
@@ -164,41 +164,41 @@ NSString * notifier = @"apple";
     }else{
         jsStatement = [NSString stringWithFormat:@"window.plugins.pushNotification.notificationCallback(%@);", [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding]];
     }
-
+    
 	[self writeJavascript:jsStatement];
 }
 
 - (void)getPendingNotifications:(CDVInvokedUrlCommand *)command {
 	DLog(@"getPendingNotifications:%@", command);
-
+    
 	// The first argument in the arguments parameter is the callbackID.
 	[self.callbackIds setValue:command.callbackId forKey:@"getPendingNotifications"];
 	//NSDictionary *options = [command.arguments objectAtIndex:0];
-
+    
 	NSMutableDictionary *results = [NSMutableDictionary dictionary];
 	[results setValue:self.pendingNotifications forKey:@"notifications"];
-
+    
 	CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:results];
 	[self writeJavascript:[pluginResult toSuccessCallbackString:[self.callbackIds valueForKey:@"getPendingNotifications"]]];
-
+    
 	[self.pendingNotifications removeAllObjects];
 }
 
 + (NSMutableDictionary*)getRemoteNotificationStatus {
-
+    
     NSMutableDictionary *results = [NSMutableDictionary dictionary];
-
+    
     NSUInteger type = 0;
     // Set the defaults to disabled unless we find otherwise...
     NSString *pushBadge = @"0";
     NSString *pushAlert = @"0";
     NSString *pushSound = @"0";
-
+    
 #if !TARGET_IPHONE_SIMULATOR
-
+    
     // Check what Notifications the user has turned on.  We registered for all three, but they may have manually disabled some or all of them.
     type = [[UIApplication sharedApplication] enabledRemoteNotificationTypes];
-
+    
     // Check what Registered Types are turned on. This is a bit tricky since if two are enabled, and one is off, it will return a number 2... not telling you which
     // one is actually disabled. So we are literally checking to see if rnTypes matches what is turned on, instead of by number. The "tricky" part is that the
     // single notification types will only match if they are the ONLY one enabled.  Likewise, when we are checking for a pair of notifications, it will only be
@@ -229,29 +229,29 @@ NSString * notifier = @"apple";
         pushAlert = @"1";
         pushSound = @"1";
     }
-
+    
 #endif
-
+    
     // Affect results
     [results setValue:[NSString stringWithFormat:@"%d", type] forKey:@"type"];
 	[results setValue:[NSString stringWithFormat:@"%d", type != UIRemoteNotificationTypeNone] forKey:@"enabled"];
     [results setValue:pushBadge forKey:@"pushBadge"];
     [results setValue:pushAlert forKey:@"pushAlert"];
     [results setValue:pushSound forKey:@"pushSound"];
-
+    
     return results;
-
+    
 }
 
 - (void)getRemoteNotificationStatus:(CDVInvokedUrlCommand *)command {
 	DLog(@"getRemoteNotificationStatus:%@", command);
-
+    
 	// The first argument in the arguments parameter is the callbackID.
 	[self.callbackIds setValue:command.callbackId forKey:@"getRemoteNotificationStatus"];
 	//NSDictionary *options = [command.arguments objectAtIndex:0];
-
+    
 	NSMutableDictionary *results = [PushNotification getRemoteNotificationStatus];
-
+    
 	CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:results];
 	[self writeJavascript:[pluginResult toSuccessCallbackString:[self.callbackIds valueForKey:@"getRemoteNotificationStatus"]]];
 }
@@ -262,7 +262,7 @@ NSString * notifier = @"apple";
     [self.callbackIds setValue:command.callbackId forKey:@"getApplicationIconBadgeNumber"];
     
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:[UIApplication sharedApplication].applicationIconBadgeNumber];
-
+    
     
     [self writeJavascript:[pluginResult toSuccessCallbackString:[self.callbackIds valueForKey:@"getApplicationIconBadgeNumber"]]];
 	
@@ -270,42 +270,42 @@ NSString * notifier = @"apple";
 
 - (void)setApplicationIconBadgeNumber:(CDVInvokedUrlCommand *)command {
 	DLog(@"setApplicationIconBadgeNumber:%@", command);
-
+    
 	// The first argument in the arguments parameter is the callbackID.
 	[self.callbackIds setValue:command.callbackId forKey:@"setApplicationIconBadgeNumber"];
 	NSDictionary *options = [command.arguments objectAtIndex:0];
-
+    
     int badge = [[options objectForKey:@"badge"] intValue] ?: 0;
     [[UIApplication sharedApplication] setApplicationIconBadgeNumber:badge];
-
+    
     NSMutableDictionary *results = [NSMutableDictionary dictionary];
 	[results setValue:[NSNumber numberWithInt:badge] forKey:@"badge"];
     [results setValue:[NSNumber numberWithInt:1] forKey:@"success"];
-
+    
 	CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:results];
 	[self writeJavascript:[pluginResult toSuccessCallbackString:[self.callbackIds valueForKey:@"setApplicationIconBadgeNumber"]]];
 }
 
 - (void)cancelAllLocalNotifications:(CDVInvokedUrlCommand *)command {
 	DLog(@"cancelAllLocalNotifications:%@", command);
-
+    
 	// The first argument in the arguments parameter is the callbackID.
 	[self.callbackIds setValue:command.callbackId forKey:@"cancelAllLocalNotifications"];
 	//NSDictionary *options = [command.arguments objectAtIndex:0];
-
+    
 	[[UIApplication sharedApplication] cancelAllLocalNotifications];
-
+    
 	CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
 	[self writeJavascript:[pluginResult toSuccessCallbackString:[self.callbackIds valueForKey:@"cancelAllLocalNotifications"]]];
 }
 
 - (void)getDeviceUniqueIdentifier:(CDVInvokedUrlCommand *)command {
 	DLog(@"getDeviceUniqueIdentifier:%@", command);
-
+    
 	// The first argument in the arguments parameter is the callbackID.
 	[self.callbackIds setValue:command.callbackId forKey:@"getDeviceUniqueIdentifier"];
 	//NSDictionary *options = [command.arguments objectAtIndex:0];
-
+    
     NSString* uuid = nil;
     if ([[UIDevice currentDevice] respondsToSelector:@selector(identifierForVendor)]) {
         // IOS 6 new Unique Identifier implementation
@@ -317,7 +317,7 @@ NSString * notifier = @"apple";
         uuid = [OpenUDID value];
         
     }
-
+    
 	CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:uuid];
 	[self writeJavascript:[pluginResult toSuccessCallbackString:[self.callbackIds valueForKey:@"getDeviceUniqueIdentifier"]]];
 }
